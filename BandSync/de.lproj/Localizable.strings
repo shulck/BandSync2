@@ -192,7 +192,7 @@
 "enabled" = "Aktiviert";
 "change_password" = "Passwort ändern";
 "delete_account" = "Konto löschen";
-"delete_account_confirmation" = "Sind Sie sicher, dass Sie Ihr Konto löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.";
+"delete_account_confirmation" = "Sind Sie сicher, dass Sie Ihr Konto löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.";
 "enable_biometric_auth" = "Biometrische Authentifizierung aktivieren";
 "biometric_for_login" = "Möchten Sie Face ID/Touch ID für eine schnellere Anmeldung verwenden?";
 "enable" = "Aktivieren";

@@ -12,8 +12,9 @@ struct RegisterView: View {
     @State private var errorMessage = ""
     @State private var isLoading = false
     @State private var registrationSuccess = false
+    @State private var passwordStrength: PasswordStrength = .empty
     
-    // Новые переменные для выбора типа регистрации
+    // Registration type selection
     @State private var registrationType = RegistrationType.createGroup
     @State private var groupCode = ""
     @State private var groupName = ""
@@ -32,6 +33,31 @@ struct RegisterView: View {
         case valid
         case invalid
         case checking
+    }
+    
+    enum PasswordStrength: Int {
+        case empty = 0
+        case weak = 1
+        case medium = 2
+        case strong = 3
+        
+        var color: Color {
+            switch self {
+            case .empty: return .gray
+            case .weak: return .red
+            case .medium: return .orange
+            case .strong: return .green
+            }
+        }
+        
+        var label: String {
+            switch self {
+            case .empty: return "Enter password"
+            case .weak: return "Weak password"
+            case .medium: return "Medium password"
+            case .strong: return "Strong password"
+            }
+        }
     }
 
     var body: some View {
@@ -63,6 +89,25 @@ struct RegisterView: View {
                     SecureField("Password", text: $password)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .padding(.horizontal)
+                        .onChange(of: password) { newValue in
+                            passwordStrength = checkPasswordStrength(newValue)
+                        }
+                    
+                    // Password strength indicator
+                    HStack {
+                        Text(passwordStrength.label)
+                            .font(.caption)
+                            .foregroundColor(passwordStrength.color)
+                        
+                        Spacer()
+                        
+                        ForEach(0..<3) { index in
+                            Rectangle()
+                                .fill(index < passwordStrength.rawValue ? passwordStrength.color : Color.gray.opacity(0.3))
+                                .frame(width: 20, height: 4)
+                        }
+                    }
+                    .padding(.horizontal)
                         
                     SecureField("Confirm Password", text: $confirmPassword)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -204,12 +249,41 @@ struct RegisterView: View {
                !password.isEmpty &&
                password == confirmPassword &&
                password.count >= 6 &&
-               email.contains("@")
+               email.contains("@") &&
+               passwordStrength != .weak
         
         if registrationType == .createGroup {
             return basicInfoValid && !groupName.isEmpty
         } else {
             return basicInfoValid && groupCodeStatus == .valid
+        }
+    }
+    
+    private func checkPasswordStrength(_ password: String) -> PasswordStrength {
+        if password.isEmpty { return .empty }
+        
+        // Basic password strength check
+        var score = 0
+        
+        // Length check
+        if password.count >= 8 { score += 1 }
+        if password.count >= 12 { score += 1 }
+        
+        // Complexity checks
+        let hasUppercase = password.range(of: "[A-Z]", options: .regularExpression) != nil
+        let hasLowercase = password.range(of: "[a-z]", options: .regularExpression) != nil
+        let hasNumbers = password.range(of: "[0-9]", options: .regularExpression) != nil
+        let hasSpecialChars = password.range(of: "[^A-Za-z0-9]", options: .regularExpression) != nil
+        
+        if hasUppercase && hasLowercase { score += 1 }
+        if hasNumbers { score += 1 }
+        if hasSpecialChars { score += 1 }
+        
+        // Convert score to strength
+        switch score {
+        case 0...1: return .weak
+        case 2...3: return .medium
+        default: return .strong
         }
     }
 
@@ -263,10 +337,10 @@ struct RegisterView: View {
     func createNewGroup(user: User) {
         let db = Firestore.firestore()
         
-        // Generate a unique group code
+        // Generate unique group code
         let groupCode = generateGroupCode()
         
-        // Create the group document
+        // Create group document
         let groupRef = db.collection("groups").document()
         let groupData: [String: Any] = [
             "name": groupName,
@@ -319,7 +393,7 @@ struct RegisterView: View {
     func joinExistingGroup(user: User) {
         let db = Firestore.firestore()
         
-        // Find the group by code
+        // Find group by code
         db.collection("groups").whereField("code", isEqualTo: groupCode).getDocuments { snapshot, error in
             if let error = error {
                 isLoading = false
@@ -335,7 +409,7 @@ struct RegisterView: View {
             
             let groupId = document.documentID
             
-            // Update group to add the user as a pending member
+            // Update group to add user as pending member
             let groupRef = db.collection("groups").document(groupId)
             groupRef.updateData([
                 "pendingMembers": FieldValue.arrayUnion([user.uid])

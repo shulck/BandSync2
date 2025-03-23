@@ -28,10 +28,10 @@ struct MainTabView: View {
                     }
             }
             
-            // Добавляем вкладку чатов
+            // Chats tab
             ChatListView()
                 .tabItem {
-                    Label("Чаты", systemImage: "bubble.left.and.bubble.right")
+                    Label("Chats", systemImage: "bubble.left.and.bubble.right")
                 }
 
             ContactsView()
@@ -63,7 +63,7 @@ struct MainTabView: View {
     }
 }
 
-// Заглушка для MoreView, которая должна содержать дополнительные настройки
+// More view with improved error handling
 struct MoreView: View {
     var groupName: String
     var groupId: String
@@ -126,7 +126,8 @@ struct MoreView: View {
                     }
                 }
                 
-                if userRole == "Admin" {
+                // Only show group code if user is admin and groupId is valid
+                if userRole == "Admin" && !groupId.isEmpty {
                     Section(header: Text("GROUP INFORMATION")) {
                         VStack(alignment: .leading) {
                             Text("Group Code")
@@ -154,6 +155,10 @@ struct MoreView: View {
     func logout() {
         do {
             try Auth.auth().signOut()
+            
+            // Post notification for app to handle logout
+            NotificationCenter.default.post(name: NSNotification.Name("LogoutUser"), object: nil)
+            
             isLoggedOut = true
         } catch {
             print("Error signing out: \(error.localizedDescription)")
@@ -161,11 +166,12 @@ struct MoreView: View {
     }
 }
 
-// View to display and share group code for admins
+// Group code view with improved error handling
 struct GroupCodeView: View {
     let groupId: String
     @State private var groupCode: String = "Loading..."
     @State private var isSharePresented = false
+    @State private var hasError = false
     
     var body: some View {
         HStack {
@@ -177,11 +183,13 @@ struct GroupCodeView: View {
             
             Spacer()
             
-            Button(action: {
-                isSharePresented = true
-            }) {
-                Image(systemName: "square.and.arrow.up")
-                    .foregroundColor(.blue)
+            if !hasError {
+                Button(action: {
+                    isSharePresented = true
+                }) {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundColor(.blue)
+                }
             }
         }
         .onAppear(perform: loadGroupCode)
@@ -191,12 +199,29 @@ struct GroupCodeView: View {
     }
     
     func loadGroupCode() {
+        // Safety check for empty groupId
+        guard !groupId.isEmpty else {
+            hasError = true
+            groupCode = "ERROR: No Group ID"
+            return
+        }
+        
         let db = Firestore.firestore()
         db.collection("groups").document(groupId).getDocument { document, error in
-            if let document = document, document.exists, let data = document.data() {
-                self.groupCode = data["code"] as? String ?? "ERROR"
-            } else {
-                self.groupCode = "ERROR"
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error loading group code: \(error.localizedDescription)")
+                    hasError = true
+                    groupCode = "ERROR: \(error.localizedDescription)"
+                    return
+                }
+                
+                if let document = document, document.exists, let data = document.data() {
+                    groupCode = data["code"] as? String ?? "ERROR: No Code Found"
+                } else {
+                    hasError = true
+                    groupCode = "ERROR: Group Not Found"
+                }
             }
         }
     }

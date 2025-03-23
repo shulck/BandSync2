@@ -10,13 +10,14 @@ struct LoginView: View {
     @State private var isPhoneAuthPresented = false
     @State private var rememberMe = true
     @State private var showBiometricButton = false
-    @State private var isLoggingIn = false
+    @State private var isLoading = false
+    @State private var showForgotPassword = false
     
     private let biometricManager = BiometricAuthManager.shared
     
     var body: some View {
         VStack(spacing: 20) {
-            // Заголовок
+            // App logo and title
             Text("BandSync")
                 .font(.largeTitle)
                 .bold()
@@ -27,7 +28,7 @@ struct LoginView: View {
                 .bold()
                 .padding(.bottom, 20)
 
-            // Форма входа
+            // Login form
             VStack(spacing: 15) {
                 TextField("Email", text: $email)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -44,7 +45,7 @@ struct LoginView: View {
                     .padding(.horizontal)
             }
             
-            // Сообщение об ошибке
+            // Error message display
             if !errorMessage.isEmpty {
                 Text(errorMessage)
                     .foregroundColor(.red)
@@ -52,9 +53,9 @@ struct LoginView: View {
                     .padding(.horizontal)
             }
 
-            // Кнопка входа
+            // Sign In button
             Button(action: login) {
-                if isLoggingIn {
+                if isLoading {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
                 } else {
@@ -65,13 +66,20 @@ struct LoginView: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(isLoggingIn ? Color.gray : Color.blue)
+            .background(isFormValid ? Color.blue : Color.gray)
             .foregroundColor(.white)
             .cornerRadius(8)
             .padding(.horizontal)
-            .disabled(isLoggingIn)
+            .disabled(isLoading || !isFormValid)
             
-            // Биометрическая кнопка входа
+            // Forgot password
+            Button(action: { showForgotPassword = true }) {
+                Text("Forgot Password?")
+                    .foregroundColor(.blue)
+            }
+            .padding(.top, 5)
+            
+            // Biometric login button
             if showBiometricButton {
                 Button(action: biometricLogin) {
                     HStack {
@@ -87,7 +95,7 @@ struct LoginView: View {
                 .padding(.horizontal)
             }
             
-            // Дополнительные опции
+            // Additional options
             VStack(spacing: 15) {
                 Button(action: {
                     isRegisterPresented = true
@@ -114,36 +122,51 @@ struct LoginView: View {
         .sheet(isPresented: $isPhoneAuthPresented) {
             PhoneAuthView(isLoggedIn: $isLoggedIn)
         }
+        .alert("Reset Password", isPresented: $showForgotPassword) {
+            TextField("Email", text: $email)
+                .keyboardType(.emailAddress)
+                .autocapitalization(.none)
+            Button("Cancel", role: .cancel) {}
+            Button("Send Reset Link") {
+                sendPasswordReset()
+            }
+        } message: {
+            Text("Enter your email to receive a password reset link")
+        }
         .onAppear {
-            // Проверяем наличие сохраненных данных для входа
+            // Check for saved credentials on app start
             checkSavedCredentials()
             
-            // Проверяем доступность биометрии
+            // Check for biometric availability
             showBiometricButton = biometricManager.biometricType != .none
         }
     }
+    
+    private var isFormValid: Bool {
+        return !email.isEmpty && email.contains("@") && !password.isEmpty
+    }
 
     func login() {
-        // Сбрасываем сообщение об ошибке
+        // Reset error message
         errorMessage = ""
         
-        // Проверка на пустые поля
-        guard !email.isEmpty && !password.isEmpty else {
-            errorMessage = "Please enter both email and password"
+        // Validate fields
+        guard isFormValid else {
+            errorMessage = "Please enter a valid email and password"
             return
         }
         
-        isLoggingIn = true
+        isLoading = true
         
-        // Вход через Firebase
+        // Firebase authentication
         Auth.auth().signIn(withEmail: email, password: password) { result, error in
-            isLoggingIn = false
+            isLoading = false
             
             if let error = error {
-                // Более понятное сообщение об ошибке
+                // More user-friendly error messages
                 let errorCode = (error as NSError).code
                 switch errorCode {
-                case 17009: // Неверный пароль
+                case 17009: // Wrong password
                     errorMessage = "Incorrect password, please try again"
                 case 17011: // Account doesn't exist
                     errorMessage = "Account not found. Please check your email or register"
@@ -153,13 +176,13 @@ struct LoginView: View {
                     errorMessage = "Login error: \(error.localizedDescription)"
                 }
             } else if let user = result?.user {
-                // Сохраняем данные для последующего автоматического входа
+                // Save credentials for future auto-login
                 if rememberMe {
                     if biometricManager.biometricType != .none {
-                        // Если доступна биометрия, предлагаем её включить
+                        // If biometrics available, offer to enable it
                         saveBiometricCredentials(user: user)
                     } else {
-                        // Иначе просто сохраняем email
+                        // Otherwise just save email
                         UserDefaults.standard.set(email, forKey: "savedEmail")
                     }
                 }
@@ -168,18 +191,33 @@ struct LoginView: View {
         }
     }
     
+    func sendPasswordReset() {
+        guard !email.isEmpty && email.contains("@") else {
+            errorMessage = "Please enter a valid email address"
+            return
+        }
+        
+        Auth.auth().sendPasswordReset(withEmail: email) { error in
+            if let error = error {
+                errorMessage = "Error: \(error.localizedDescription)"
+            } else {
+                errorMessage = "Password reset link sent to your email"
+            }
+        }
+    }
+    
     func biometricLogin() {
         BiometricAuthManager.shared.authenticate { result in
             switch result {
             case .success:
-                // Получаем сохраненный email для текущего пользователя
+                // Get saved email for current user
                 if let userID = UserDefaults.standard.string(forKey: "lastLoggedInUserID"),
                    let savedEmail = BiometricAuthManager.shared.getAuthCredentials(for: userID) {
                     
-                    // Автоматически входим с сохраненными данными, если они есть
+                    // Auto-fill email field
                     self.email = savedEmail
                     
-                    // Проверяем, есть ли активная сессия Firebase
+                    // Check if there's an active Firebase session
                     if Auth.auth().currentUser != nil {
                         isLoggedIn = true
                     } else {
@@ -189,7 +227,7 @@ struct LoginView: View {
             case .failure(let error):
                 switch error {
                 case .userCancelled:
-                    // Пользователь отменил - не показываем ошибку
+                    // User cancelled - don't show error
                     break
                 case .biometryNotEnrolled:
                     errorMessage = "Biometric authentication not set up on this device"
@@ -203,20 +241,20 @@ struct LoginView: View {
     }
     
     func saveBiometricCredentials(user: User) {
-        // Сохраняем учетные данные для биометрии
+        // Save credentials for biometric login
         BiometricAuthManager.shared.setBiometricAuthEnabled(true, for: user.uid)
         BiometricAuthManager.shared.saveAuthCredentials(userID: user.uid, email: email)
         UserDefaults.standard.set(user.uid, forKey: "lastLoggedInUserID")
     }
     
     func checkSavedCredentials() {
-        // Проверяем, есть ли сохраненный пользователь
+        // Check if we have a saved user
         if let userID = UserDefaults.standard.string(forKey: "lastLoggedInUserID"),
            BiometricAuthManager.shared.isBiometricAuthEnabled(for: userID) {
-            // Если для этого пользователя включена биометрия, показываем кнопку
+            // If biometrics enabled for this user, show button
             showBiometricButton = true
         } else if let savedEmail = UserDefaults.standard.string(forKey: "savedEmail") {
-            // Иначе просто заполняем email
+            // Otherwise just fill in email
             email = savedEmail
         }
     }

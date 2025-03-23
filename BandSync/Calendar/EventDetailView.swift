@@ -8,39 +8,44 @@ struct EventDetailView: View {
     @State private var showingMap = false
     @State private var showingEdit = false
     @State private var showingSetlistPicker = false
+    @State private var showingNotificationSettings = false
+    @State private var selectedReminderTime: ReminderTime = .oneHour
+    @State private var notificationsEnabled = false
+    
+    private let notificationService = NotificationService.shared
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // Заголовок для всех типов событий
+                // Заголовок события
                 headerSection
-
+                
                 Divider()
                 
-                // Локация для всех типов событий
+                // Секция местоположения
                 locationSection
-
-                // Организатор - нужен для всех, кроме возможно репетиции
+                
+                // Информация об организаторе
                 if eventNeedsOrganizer(event.type) || !event.organizer.name.isEmpty {
-                    contactSection(title: "Організатор", contact: event.organizer)
+                    contactSection(title: "Organizer", contact: event.organizer)
                 }
                 
-                // Координатор - нужен для концертов и фестивалей
+                // Информация о координаторе
                 if eventNeedsCoordinator(event.type) || !event.coordinator.name.isEmpty {
-                    contactSection(title: "Координатор", contact: event.coordinator)
+                    contactSection(title: "Coordinator", contact: event.coordinator)
                 }
-
-                // Отель - по типу события
+                
+                // Информация о гостинице
                 if eventNeedsHotel(event.type) && (!event.hotel.address.isEmpty || !event.hotel.checkIn.isEmpty) {
                     hotelSection
                 }
                 
-                // Гонорар - для концертов, фестивалей и иногда фотосессий
+                // Информация о гонораре
                 if eventNeedsFee(event.type) && !event.fee.isEmpty {
                     feeSection
                 }
                 
-                // Сетлист - для концертов, фестивалей и репетиций
+                // Сетлист
                 if eventNeedsSetlist(event.type) {
                     if event.setlist.isEmpty {
                         Button(action: {
@@ -55,28 +60,32 @@ struct EventDetailView: View {
                     }
                 }
                 
-                // Расписание дня - для всех типов событий
+                // Расписание дня
                 if !event.schedule.isEmpty {
                     scheduleSection
                 }
                 
-                // Заметки - для всех типов событий
+                // Заметки
                 if !event.notes.isEmpty {
                     notesSection
                 }
-
+                
+                // Секция настройки уведомлений
+                notificationSection
+                
                 if showingMap {
                     MapLocationView(address: event.location)
                         .frame(height: 250)
                         .cornerRadius(12)
                         .padding(.vertical, 4)
                 }
-
+                
+                // Кнопки действий
                 actionsSection
             }
             .padding()
         }
-        .navigationTitle("Деталі події")
+        .navigationTitle("Event Details")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingEdit) {
             EditEventView(event: event)
@@ -84,39 +93,44 @@ struct EventDetailView: View {
         .sheet(isPresented: $showingSetlistPicker) {
             SetlistPickerView(selectedSetlist: .constant([]))
         }
+        .sheet(isPresented: $showingNotificationSettings) {
+            NotificationSettingsView(event: event)
+        }
+        .onAppear {
+            checkNotificationStatus()
+        }
     }
     
     // MARK: - Event Type Requirements
     
-    // Проверяем, нужен ли сетлист для данного типа события
+    // Проверка необходимости сетлиста для данного типа события
     func eventNeedsSetlist(_ type: String) -> Bool {
         return ["Concert", "Festival", "Rehearsal"].contains(type)
     }
     
-    // Проверяем, нужна ли информация об отеле
+    // Проверка необходимости информации о гостинице
     func eventNeedsHotel(_ type: String) -> Bool {
-        // Для концертов, фестивалей точно да
-        // Для встреч, фотосессий и интервью - возможно
         return ["Concert", "Festival", "Meeting", "Photo Session", "Interview"].contains(type)
     }
     
-    // Проверяем, нужен ли гонорар
+    // Проверка необходимости информации о гонораре
     func eventNeedsFee(_ type: String) -> Bool {
         return ["Concert", "Festival", "Photo Session"].contains(type)
     }
     
-    // Проверяем, нужен ли координатор
+    // Проверка необходимости информации о координаторе
     func eventNeedsCoordinator(_ type: String) -> Bool {
         return ["Concert", "Festival"].contains(type)
     }
     
-    // Проверяем, нужен ли организатор
+    // Проверка необходимости информации об организаторе
     func eventNeedsOrganizer(_ type: String) -> Bool {
         return ["Concert", "Festival", "Meeting", "Rehearsal", "Photo Session", "Interview"].contains(type)
     }
-
+    
     // MARK: - UI Sections
-
+    
+    // Секция заголовка
     private var headerSection: some View {
         VStack(alignment: .leading) {
             Text(event.title)
@@ -127,26 +141,34 @@ struct EventDetailView: View {
                 .foregroundColor(.blue)
         }
     }
-
+    
+    // Секция местоположения
     private var locationSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Локація", systemImage: "mappin.and.ellipse")
+            Label("Location", systemImage: "mappin.and.ellipse")
+                .font(.headline)
             Text(event.location).foregroundColor(.secondary)
+            
             Button(action: {
                 showingMap.toggle()
             }) {
-                Label(showingMap ? "Сховати карту" : "Показати на карті",
+                Label(showingMap ? "Hide Map" : "Show on Map",
                       systemImage: showingMap ? "map.fill" : "map")
                     .foregroundColor(.blue)
             }
+            .padding(.top, 4)
         }
     }
-
+    
+    // Секция контактов
     private func contactSection(title: String, contact: EventContact) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(title, systemImage: "person")
+                .font(.headline)
+            
             if !contact.name.isEmpty {
-                Text("Ім'я: \(contact.name)")
+                Text(contact.name)
+                    .foregroundColor(.secondary)
             }
             
             if !contact.phone.isEmpty {
@@ -169,38 +191,53 @@ struct EventDetailView: View {
         }
         .padding(.vertical, 4)
     }
-
+    
+    // Секция гостиницы
     private var hotelSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Готель", systemImage: "bed.double")
+            Label("Hotel", systemImage: "bed.double")
+                .font(.headline)
+            
             if !event.hotel.address.isEmpty {
-                Text("Адреса: \(event.hotel.address)")
+                Text("Address: \(event.hotel.address)")
+                    .foregroundColor(.secondary)
             }
             
             if !event.hotel.checkIn.isEmpty {
-                Text("Чек-ін: \(event.hotel.checkIn)")
+                Text("Check-in: \(event.hotel.checkIn)")
+                    .foregroundColor(.secondary)
             }
             
             if !event.hotel.checkOut.isEmpty {
-                Text("Чек-аут: \(event.hotel.checkOut)")
+                Text("Check-out: \(event.hotel.checkOut)")
+                    .foregroundColor(.secondary)
             }
         }
     }
-
+    
+    // Секция гонорара
     private var feeSection: some View {
-        Label("Гонорар: \(event.fee)", systemImage: "dollarsign.circle")
+        VStack(alignment: .leading, spacing: 4) {
+            Label("Fee: \(event.fee)", systemImage: "dollarsign.circle")
+                .font(.headline)
+        }
     }
-
+    
+    // Секция сетлиста
     private var setlistSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Сетлист", systemImage: "music.note.list")
+            Label("Setlist", systemImage: "music.note.list")
+                .font(.headline)
+            
             ForEach(event.setlist, id: \.self) { song in
                 HStack {
                     Text("🎵")
                     Text(song)
+                        .foregroundColor(.secondary)
                 }
                 .padding(.vertical, 2)
             }
+            
             Button(action: {
                 showingSetlistPicker = true
             }) {
@@ -210,10 +247,13 @@ struct EventDetailView: View {
             }
         }
     }
-
+    
+    // Секция расписания
     private var scheduleSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Розклад дня", systemImage: "calendar.badge.clock")
+            Label("Schedule", systemImage: "calendar.badge.clock")
+                .font(.headline)
+            
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(event.schedule) { item in
                     HStack(alignment: .top) {
@@ -221,8 +261,10 @@ struct EventDetailView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .frame(width: 60, alignment: .leading)
+                        
                         Text(item.activity)
                             .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                     .padding(.vertical, 2)
                 }
@@ -230,58 +272,106 @@ struct EventDetailView: View {
             .padding(.leading, 4)
         }
     }
-
+    
+    // Секция заметок
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Нотатки", systemImage: "note.text")
+            Label("Notes", systemImage: "note.text")
+                .font(.headline)
+            
             Text(event.notes)
                 .foregroundColor(.secondary)
                 .padding(.leading, 4)
         }
     }
-
+    
+    // Секция настройки уведомлений
+    private var notificationSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Notifications", systemImage: "bell")
+                .font(.headline)
+            
+            HStack {
+                VStack(alignment: .leading) {
+                    if notificationsEnabled {
+                        Text("Event reminder set")
+                            .foregroundColor(.green)
+                    } else {
+                        Text("No reminder set")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                Button(action: {
+                    showingNotificationSettings = true
+                }) {
+                    Text("Set Reminder")
+                        .foregroundColor(.blue)
+                }
+            }
+            .padding(.top, 4)
+        }
+        .padding(.vertical, 4)
+    }
+    
+    // Секция кнопок действий
     private var actionsSection: some View {
         HStack {
             Button(action: {
                 showingEdit = true
             }) {
-                Label("Редагувати", systemImage: "pencil")
+                Label("Edit", systemImage: "pencil")
             }
             .buttonStyle(.borderedProminent)
-
+            
             Spacer()
-
+            
             Button(action: {
                 shareEvent()
             }) {
-                Label("Поділитися", systemImage: "square.and.arrow.up")
+                Label("Share", systemImage: "square.and.arrow.up")
             }
             .buttonStyle(.bordered)
-
+            
             Button(action: deleteEvent) {
-                Label("Видалити", systemImage: "trash")
+                Label("Delete", systemImage: "trash")
                     .foregroundColor(.red)
             }
             .buttonStyle(.bordered)
         }
         .padding(.top)
     }
-
+    
     // MARK: - Actions
-
+    
+    // Проверка статуса уведомлений
+    private func checkNotificationStatus() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            DispatchQueue.main.async {
+                let hasNotification = requests.contains { $0.identifier.starts(with: "event-\(event.id)") }
+                notificationsEnabled = hasNotification
+            }
+        }
+    }
+    
+    // Звонок по номеру телефона
     private func callPhoneNumber(_ phoneNumber: String) {
         let formattedPhone = phoneNumber.replacingOccurrences(of: " ", with: "")
         if let url = URL(string: "tel://\(formattedPhone)"), UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
         }
     }
-
+    
+    // Отправка email
     private func sendEmail(_ email: String) {
         if let url = URL(string: "mailto:\(email)"), UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
         }
     }
-
+    
+    // Поделиться событием
     private func shareEvent() {
         // Создаем текст для шаринга
         let shareText = """
@@ -303,20 +393,24 @@ struct EventDetailView: View {
             rootViewController.present(activityViewController, animated: true, completion: nil)
         }
     }
-
+    
+    // Удаление события
     func deleteEvent() {
         // Создаем алерт для подтверждения
         let alert = UIAlertController(
-            title: "Удалить событие?",
-            message: "Это действие нельзя отменить",
+            title: "Delete Event?",
+            message: "This action cannot be undone",
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: "Отмена", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Удалить", style: .destructive) { _ in
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Delete", style: .destructive) { _ in
             // Удаляем событие из Firebase
             Firestore.firestore().collection("events").document(event.id).delete { error in
                 if error == nil {
+                    // Удаляем связанные уведомления
+                    NotificationService.shared.cancelEventNotifications(for: event.id)
+                    
                     // Закрываем окно с деталями события
                     presentationMode.wrappedValue.dismiss()
                 } else {
@@ -330,5 +424,110 @@ struct EventDetailView: View {
            let rootViewController = windowScene.windows.first?.rootViewController {
             rootViewController.present(alert, animated: true, completion: nil)
         }
+    }
+}
+
+// Представление для настройки уведомлений
+struct NotificationSettingsView: View {
+    let event: Event
+    @Environment(\.presentationMode) var presentationMode
+    @State private var isNotificationsAuthorized = false
+    @State private var selectedReminderTime: ReminderTime = .oneHour
+    @State private var enableNotification = true
+    
+    private let notificationService = NotificationService.shared
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Reminder Settings")) {
+                    Toggle("Enable Event Reminder", isOn: $enableNotification)
+                        .disabled(!isNotificationsAuthorized)
+                    
+                    if enableNotification {
+                        Picker("Remind Me", selection: $selectedReminderTime) {
+                            ForEach(ReminderTime.allCases) { time in
+                                Text(time.rawValue).tag(time)
+                            }
+                        }
+                        .disabled(!isNotificationsAuthorized)
+                    }
+                }
+                
+                if !isNotificationsAuthorized {
+                    Section {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Notifications Disabled")
+                                .font(.headline)
+                                .foregroundColor(.red)
+                            
+                            Text("Please enable notifications in system settings to receive event reminders.")
+                                .font(.caption)
+                            
+                            Button("Open Settings") {
+                                if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(settingsURL)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+                    }
+                }
+                
+                Section {
+                    Button(action: saveSettings) {
+                        Text("Save Settings")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(isNotificationsAuthorized ? Color.blue : Color.gray)
+                            .cornerRadius(8)
+                    }
+                    .disabled(!isNotificationsAuthorized)
+                }
+            }
+            .navigationTitle("Event Reminder")
+            .navigationBarItems(trailing: Button("Cancel") {
+                presentationMode.wrappedValue.dismiss()
+            })
+            .onAppear {
+                // Проверяем разрешение на уведомления
+                notificationService.checkAuthorizationStatus { authorized in
+                    isNotificationsAuthorized = authorized
+                }
+                
+                // Проверяем, есть ли уже уведомление для этого события
+                checkExistingNotification()
+            }
+        }
+    }
+    
+    // Проверка существующего уведомления
+    private func checkExistingNotification() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let matchingRequests = requests.filter { $0.identifier.starts(with: "event-\(event.id)") }
+            
+            if let existingRequest = matchingRequests.first {
+                let identifier = existingRequest.identifier
+                if let reminderType = identifier.components(separatedBy: "-").last,
+                   let reminderTime = ReminderTime.allCases.first(where: { $0.rawValue == reminderType }) {
+                    DispatchQueue.main.async {
+                        selectedReminderTime = reminderTime
+                        enableNotification = true
+                    }
+                }
+            }
+        }
+    }
+    
+    // Сохранение настроек уведомлений
+    private func saveSettings() {
+        if enableNotification {
+            notificationService.scheduleEventNotification(for: event, reminderTime: selectedReminderTime)
+        } else {
+            notificationService.cancelEventNotifications(for: event.id)
+        }
+        
+        presentationMode.wrappedValue.dismiss()
     }
 }

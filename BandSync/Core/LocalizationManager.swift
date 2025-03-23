@@ -47,12 +47,18 @@ class LocalizationManager: ObservableObject {
     
     // Функция для получения локализованной строки
     func localizedString(_ key: String, defaultValue: String = "") -> String {
-        let path = Bundle.main.path(forResource: currentLanguage.rawValue, ofType: "lproj")
-        let bundle = path != nil ? Bundle(path: path!) : Bundle.main
-        let localizedString = NSLocalizedString(key, tableName: nil, bundle: bundle ?? Bundle.main, value: "", comment: "")
+        guard let path = Bundle.main.path(forResource: currentLanguage.rawValue, ofType: "lproj"),
+              let bundle = Bundle(path: path) else {
+            print("❌ Could not find localization bundle for \(currentLanguage.rawValue)")
+            return defaultValue.isEmpty ? key : defaultValue
+        }
         
-        // Если перевод отсутствует, возвращаем defaultValue или ключ
-        return localizedString == key ? (defaultValue.isEmpty ? key : defaultValue) : localizedString
+        let localizedString = NSLocalizedString(key, tableName: "Localizable",
+                                                bundle: bundle,
+                                                value: defaultValue.isEmpty ? key : defaultValue,
+                                                comment: "")
+        
+        return localizedString
     }
     
     // Функция для смены языка

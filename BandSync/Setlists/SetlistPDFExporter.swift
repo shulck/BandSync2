@@ -89,7 +89,7 @@ class SetlistPDFExporter {
                 let songSeconds = Int(song.duration) % 60
                 let songDurationText = String(format: "%d:%02d", songMinutes, songSeconds)
                 
-                // Форматируем строку с информацией о песне - исправленный вариант
+                // Форматируем строку с информацией о песне
                 let songText = String(format: "%3d  %@ %@", index + 1, song.title, songDurationText)
                 let songString = NSAttributedString(string: songText, attributes: textAttributes)
                 

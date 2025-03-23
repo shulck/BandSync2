@@ -1,7 +1,8 @@
 import SwiftUI
 import Firebase
-import FirebaseAuth  // Добавляем импорт
+import FirebaseAuth
 import FirebaseFirestore
+import UserNotifications
 
 @main
 struct BandSyncApp: App {
@@ -12,6 +13,9 @@ struct BandSyncApp: App {
     let persistenceController = PersistenceController.shared
 
     init() {
+        // Инициализируем сервис уведомлений
+        let _ = NotificationService.shared
+        
         // Глобальный наблюдатель для смены языка
         NotificationCenter.default.addObserver(
             forName: Notification.Name("LanguageChanged"),
@@ -19,7 +23,7 @@ struct BandSyncApp: App {
             queue: .main
         ) { _ in
             // Этот код будет выполнен при смене языка
-            print("🌐 Язык изменен на: \(LocalizationManager.shared.currentLanguage.rawValue)")
+            print("🌐 Language changed to: \(LocalizationManager.shared.currentLanguage.rawValue)")
         }
         
         // Наблюдатель для принудительной перезагрузки приложения
@@ -30,7 +34,7 @@ struct BandSyncApp: App {
         ) { [self] _ in
             // Смена этого идентификатора заставит SwiftUI полностью перестроить приложение
             self.appReloadTrigger = UUID()
-            print("🔄 Принудительная перезагрузка приложения")
+            print("🔄 Forced app reload")
         }
     }
 
@@ -39,19 +43,23 @@ struct BandSyncApp: App {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(localizationManager)
-                .id(appReloadTrigger) // Ключевой момент: перезагрузка при смене ID
+                .id(appReloadTrigger) // Перезагрузка при смене ID
         }
     }
 }
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         FirebaseApp.configure()
-        print("🔥 Firebase успішно ініціалізовано!")
-        Firestore.firestore() // Ініціалізація Firestore
+        print("🔥 Firebase successfully initialized!")
+        Firestore.firestore() // Инициализация Firestore
         
-        // Настраиваем параметры безопасности согласно ТЗ
+        // Настройка центра уведомлений
+        UNUserNotificationCenter.current().delegate = self
+        NotificationService.shared.setupNotificationActions()
+        
+        // Настройка безопасности
         configureSecuritySettings()
         
         return true
@@ -68,14 +76,59 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         let db = Firestore.firestore()
         let settings = db.settings
         // Используем последнюю версию TLS
-        settings.isSSLEnabled = true  // Исправлено с sslEnabled на isSSLEnabled
+        settings.isSSLEnabled = true
         db.settings = settings
         
-        // 3. Настройка шифрования локальных данных (в реальном приложении)
-        // В iOS для защиты данных используется Data Protection API
-        // и Keychain для хранения чувствительных данных
-        
-        // 4. Логгирование важных операций безопасности
+        // 3. Логгирование важных операций безопасности
         print("🔐 Security settings configured successfully")
+    }
+    
+    // MARK: - UNUserNotificationCenterDelegate
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Показываем уведомление, даже если приложение в фокусе
+        completionHandler([.banner, .sound, .badge])
+    }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        // Обрабатываем нажатие на уведомление
+        let userInfo = response.notification.request.content.userInfo
+        
+        switch response.actionIdentifier {
+        case "VIEW_EVENT":
+            // Открываем детали события
+            if let eventId = userInfo["eventId"] as? String {
+                // Здесь код для навигации к деталям события
+                print("Opening event with ID: \(eventId)")
+            }
+        case "REMIND_LATER":
+            // Напоминаем позже
+            if let eventId = userInfo["eventId"] as? String,
+               let eventTitle = userInfo["eventTitle"] as? String,
+               let eventLocation = userInfo["eventLocation"] as? String {
+                
+                // Создаем новое уведомление через 30 минут
+                let content = UNMutableNotificationContent()
+                content.title = "Reminder: \(eventTitle)"
+                content.body = "Location: \(eventLocation)"
+                content.sound = .default
+                
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 30 * 60, repeats: false)
+                let request = UNNotificationRequest(identifier: "reminder-later-\(eventId)", content: content, trigger: trigger)
+                
+                center.add(request) { error in
+                    if let error = error {
+                        print("Error scheduling reminder: \(error.localizedDescription)")
+                    }
+                }
+            }
+        default:
+            // Обработка стандартного нажатия
+            if let eventId = userInfo["eventId"] as? String {
+                print("Opening event with ID: \(eventId)")
+            }
+        }
+        
+        completionHandler()
     }
 }
