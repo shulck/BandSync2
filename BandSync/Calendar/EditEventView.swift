@@ -180,6 +180,10 @@ struct EditEventView: View {
             }
             .sheet(isPresented: $showingSetlistPicker) {
                 SetlistPickerView(selectedSetlist: $updatedEvent.setlist)
+                    .onDisappear {
+                        // Можно добавить для отладки
+                        print("📝 Setlist picker закрыт, выбран сетлист: \(updatedEvent.setlist)")
+                    }
             }
         }
     }

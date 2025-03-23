@@ -11,6 +11,7 @@ struct EventDetailView: View {
     @State private var showingNotificationSettings = false
     @State private var selectedReminderTime: ReminderTime = .oneHour
     @State private var notificationsEnabled = false
+    @State private var eventSetlist: [String] = []
     
     private let notificationService = NotificationService.shared
 
@@ -18,60 +19,228 @@ struct EventDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 // Заголовок события
-                headerSection
+                VStack(alignment: .leading) {
+                    Text(event.title)
+                        .font(.largeTitle).bold()
+                    Text("\(event.icon) \(event.type) • \(event.status)")
+                        .foregroundColor(.secondary)
+                    Text(event.date.formatted(date: .long, time: .shortened))
+                        .foregroundColor(.blue)
+                }
                 
                 Divider()
                 
                 // Секция местоположения
-                locationSection
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Location", systemImage: "mappin.and.ellipse")
+                        .font(.headline)
+                    Text(event.location).foregroundColor(.secondary)
+                    
+                    Button(action: {
+                        showingMap.toggle()
+                    }) {
+                        Label(showingMap ? "Hide Map" : "Show on Map",
+                              systemImage: showingMap ? "map.fill" : "map")
+                            .foregroundColor(.blue)
+                    }
+                    .padding(.top, 4)
+                }
                 
                 // Информация об организаторе
                 if eventNeedsOrganizer(event.type) || !event.organizer.name.isEmpty {
-                    contactSection(title: "Organizer", contact: event.organizer)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Organizer", systemImage: "person")
+                            .font(.headline)
+                        
+                        if !event.organizer.name.isEmpty {
+                            Text(event.organizer.name)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        if !event.organizer.phone.isEmpty {
+                            Button(action: {
+                                callPhoneNumber(event.organizer.phone)
+                            }) {
+                                Label(event.organizer.phone, systemImage: "phone")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        
+                        if !event.organizer.email.isEmpty {
+                            Button(action: {
+                                sendEmail(event.organizer.email)
+                            }) {
+                                Label(event.organizer.email, systemImage: "envelope")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
                 
                 // Информация о координаторе
                 if eventNeedsCoordinator(event.type) || !event.coordinator.name.isEmpty {
-                    contactSection(title: "Coordinator", contact: event.coordinator)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Coordinator", systemImage: "person")
+                            .font(.headline)
+                        
+                        if !event.coordinator.name.isEmpty {
+                            Text(event.coordinator.name)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        if !event.coordinator.phone.isEmpty {
+                            Button(action: {
+                                callPhoneNumber(event.coordinator.phone)
+                            }) {
+                                Label(event.coordinator.phone, systemImage: "phone")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        
+                        if !event.coordinator.email.isEmpty {
+                            Button(action: {
+                                sendEmail(event.coordinator.email)
+                            }) {
+                                Label(event.coordinator.email, systemImage: "envelope")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
                 
                 // Информация о гостинице
                 if eventNeedsHotel(event.type) && (!event.hotel.address.isEmpty || !event.hotel.checkIn.isEmpty) {
-                    hotelSection
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Hotel", systemImage: "bed.double")
+                            .font(.headline)
+                        
+                        if !event.hotel.address.isEmpty {
+                            Text("Address: \(event.hotel.address)")
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        if !event.hotel.checkIn.isEmpty {
+                            Text("Check-in: \(event.hotel.checkIn)")
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        if !event.hotel.checkOut.isEmpty {
+                            Text("Check-out: \(event.hotel.checkOut)")
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
                 
                 // Информация о гонораре
                 if eventNeedsFee(event.type) && !event.fee.isEmpty {
-                    feeSection
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Fee: \(event.fee)", systemImage: "dollarsign.circle")
+                            .font(.headline)
+                    }
                 }
                 
                 // Сетлист
                 if eventNeedsSetlist(event.type) {
-                    if event.setlist.isEmpty {
-                        Button(action: {
-                            showingSetlistPicker = true
-                        }) {
-                            Label("Connect Setlist", systemImage: "music.note.list")
-                                .foregroundColor(.blue)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Setlist", systemImage: "music.note.list")
+                            .font(.headline)
+                        
+                        if eventSetlist.isEmpty {
+                            Button(action: {
+                                showingSetlistPicker = true
+                            }) {
+                                Label("Connect Setlist", systemImage: "music.note.list")
+                                    .foregroundColor(.blue)
+                            }
+                            .padding(.top, 4)
+                        } else {
+                            ForEach(eventSetlist, id: \.self) { song in
+                                HStack {
+                                    Text("🎵")
+                                    Text(song)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.vertical, 2)
+                            }
+                            
+                            Button(action: {
+                                showingSetlistPicker = true
+                            }) {
+                                Label("Change Setlist", systemImage: "pencil")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
                         }
-                        .padding(.top, 4)
-                    } else {
-                        setlistSection
                     }
                 }
                 
                 // Расписание дня
                 if !event.schedule.isEmpty {
-                    scheduleSection
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Schedule", systemImage: "calendar.badge.clock")
+                            .font(.headline)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(event.schedule) { item in
+                                HStack(alignment: .top) {
+                                    Text(item.time)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                        .frame(width: 60, alignment: .leading)
+                                    
+                                    Text(item.activity)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+                        .padding(.leading, 4)
+                    }
                 }
                 
                 // Заметки
                 if !event.notes.isEmpty {
-                    notesSection
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Notes", systemImage: "note.text")
+                            .font(.headline)
+                        
+                        Text(event.notes)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 4)
+                    }
                 }
                 
                 // Секция настройки уведомлений
-                notificationSection
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Notifications", systemImage: "bell")
+                        .font(.headline)
+                    
+                    HStack {
+                        VStack(alignment: .leading) {
+                            if notificationsEnabled {
+                                Text("Event reminder set")
+                                    .foregroundColor(.green)
+                            } else {
+                                Text("No reminder set")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            showingNotificationSettings = true
+                        }) {
+                            Text("Set Reminder")
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+                .padding(.vertical, 4)
                 
                 if showingMap {
                     MapLocationView(address: event.location)
@@ -81,7 +250,30 @@ struct EventDetailView: View {
                 }
                 
                 // Кнопки действий
-                actionsSection
+                HStack {
+                    Button(action: {
+                        showingEdit = true
+                    }) {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        shareEvent()
+                    }) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Button(action: deleteEvent) {
+                        Label("Delete", systemImage: "trash")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(.top)
             }
             .padding()
         }
@@ -91,13 +283,17 @@ struct EventDetailView: View {
             EditEventView(event: event)
         }
         .sheet(isPresented: $showingSetlistPicker) {
-            SetlistPickerView(selectedSetlist: .constant([]))
+            SetlistPickerView(selectedSetlist: $eventSetlist)
+                .onDisappear {
+                    updateSetlist()
+                }
         }
         .sheet(isPresented: $showingNotificationSettings) {
             NotificationSettingsView(event: event)
         }
         .onAppear {
             checkNotificationStatus()
+            eventSetlist = event.setlist
         }
     }
     
@@ -128,223 +324,21 @@ struct EventDetailView: View {
         return ["Concert", "Festival", "Meeting", "Rehearsal", "Photo Session", "Interview"].contains(type)
     }
     
-    // MARK: - UI Sections
-    
-    // Секция заголовка
-    private var headerSection: some View {
-        VStack(alignment: .leading) {
-            Text(event.title)
-                .font(.largeTitle).bold()
-            Text("\(event.icon) \(event.type) • \(event.status)")
-                .foregroundColor(.secondary)
-            Text(event.date.formatted(date: .long, time: .shortened))
-                .foregroundColor(.blue)
-        }
-    }
-    
-    // Секция местоположения
-    private var locationSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label("Location", systemImage: "mappin.and.ellipse")
-                .font(.headline)
-            Text(event.location).foregroundColor(.secondary)
-            
-            Button(action: {
-                showingMap.toggle()
-            }) {
-                Label(showingMap ? "Hide Map" : "Show on Map",
-                      systemImage: showingMap ? "map.fill" : "map")
-                    .foregroundColor(.blue)
-            }
-            .padding(.top, 4)
-        }
-    }
-    
-    // Секция контактов
-    private func contactSection(title: String, contact: EventContact) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(title, systemImage: "person")
-                .font(.headline)
-            
-            if !contact.name.isEmpty {
-                Text(contact.name)
-                    .foregroundColor(.secondary)
-            }
-            
-            if !contact.phone.isEmpty {
-                Button(action: {
-                    callPhoneNumber(contact.phone)
-                }) {
-                    Label(contact.phone, systemImage: "phone")
-                        .foregroundColor(.blue)
-                }
-            }
-            
-            if !contact.email.isEmpty {
-                Button(action: {
-                    sendEmail(contact.email)
-                }) {
-                    Label(contact.email, systemImage: "envelope")
-                        .foregroundColor(.blue)
-                }
-            }
-        }
-        .padding(.vertical, 4)
-    }
-    
-    // Секция гостиницы
-    private var hotelSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label("Hotel", systemImage: "bed.double")
-                .font(.headline)
-            
-            if !event.hotel.address.isEmpty {
-                Text("Address: \(event.hotel.address)")
-                    .foregroundColor(.secondary)
-            }
-            
-            if !event.hotel.checkIn.isEmpty {
-                Text("Check-in: \(event.hotel.checkIn)")
-                    .foregroundColor(.secondary)
-            }
-            
-            if !event.hotel.checkOut.isEmpty {
-                Text("Check-out: \(event.hotel.checkOut)")
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-    
-    // Секция гонорара
-    private var feeSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label("Fee: \(event.fee)", systemImage: "dollarsign.circle")
-                .font(.headline)
-        }
-    }
-    
-    // Секция сетлиста
-    private var setlistSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label("Setlist", systemImage: "music.note.list")
-                .font(.headline)
-            
-            ForEach(event.setlist, id: \.self) { song in
-                HStack {
-                    Text("🎵")
-                    Text(song)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.vertical, 2)
-            }
-            
-            Button(action: {
-                showingSetlistPicker = true
-            }) {
-                Label("Change Setlist", systemImage: "pencil")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-            }
-        }
-    }
-    
-    // Секция расписания
-    private var scheduleSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label("Schedule", systemImage: "calendar.badge.clock")
-                .font(.headline)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(event.schedule) { item in
-                    HStack(alignment: .top) {
-                        Text(item.time)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .frame(width: 60, alignment: .leading)
-                        
-                        Text(item.activity)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
-            .padding(.leading, 4)
-        }
-    }
-    
-    // Секция заметок
-    private var notesSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label("Notes", systemImage: "note.text")
-                .font(.headline)
-            
-            Text(event.notes)
-                .foregroundColor(.secondary)
-                .padding(.leading, 4)
-        }
-    }
-    
-    // Секция настройки уведомлений
-    private var notificationSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Notifications", systemImage: "bell")
-                .font(.headline)
-            
-            HStack {
-                VStack(alignment: .leading) {
-                    if notificationsEnabled {
-                        Text("Event reminder set")
-                            .foregroundColor(.green)
-                    } else {
-                        Text("No reminder set")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Spacer()
-                
-                Button(action: {
-                    showingNotificationSettings = true
-                }) {
-                    Text("Set Reminder")
-                        .foregroundColor(.blue)
-                }
-            }
-            .padding(.top, 4)
-        }
-        .padding(.vertical, 4)
-    }
-    
-    // Секция кнопок действий
-    private var actionsSection: some View {
-        HStack {
-            Button(action: {
-                showingEdit = true
-            }) {
-                Label("Edit", systemImage: "pencil")
-            }
-            .buttonStyle(.borderedProminent)
-            
-            Spacer()
-            
-            Button(action: {
-                shareEvent()
-            }) {
-                Label("Share", systemImage: "square.and.arrow.up")
-            }
-            .buttonStyle(.bordered)
-            
-            Button(action: deleteEvent) {
-                Label("Delete", systemImage: "trash")
-                    .foregroundColor(.red)
-            }
-            .buttonStyle(.bordered)
-        }
-        .padding(.top)
-    }
-    
     // MARK: - Actions
+    
+    // Обновление сетлиста события
+    func updateSetlist() {
+        let db = Firestore.firestore()
+        db.collection("events").document(event.id).updateData([
+            "setlist": eventSetlist
+        ]) { error in
+            if let error = error {
+                print("❌ Ошибка при обновлении сетлиста: \(error.localizedDescription)")
+            } else {
+                print("✅ Сетлист события успешно обновлен")
+            }
+        }
+    }
     
     // Проверка статуса уведомлений
     private func checkNotificationStatus() {
@@ -426,8 +420,7 @@ struct EventDetailView: View {
         }
     }
 }
-
-// Представление для настройки уведомлений
+// Добавьте в конец файла
 struct NotificationSettingsView: View {
     let event: Event
     @Environment(\.presentationMode) var presentationMode

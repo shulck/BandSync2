@@ -32,6 +32,7 @@ struct SetlistPickerView: View {
                         }
                         .padding(.top, 20)
                     }
+                    .padding()
                 } else {
                     List {
                         ForEach(availableSetlists) { setlist in
@@ -58,6 +59,7 @@ struct SetlistPickerView: View {
                             .contentShape(Rectangle())
                         }
                     }
+                    .listStyle(PlainListStyle())
                     
                     Button(action: {
                         if let selectedId = selectedSetlistId,
@@ -89,44 +91,38 @@ struct SetlistPickerView: View {
     }
     
     func fetchSetlists() {
-        // В реальном приложении здесь был бы код загрузки сетлистов из Firebase
-        // Для демонстрации используем предустановленные сетлисты
-        
-        // Имитация задержки загрузки
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            let setlist1 = Setlist(
-                id: "1",
-                name: "Main Set",
-                songs: [
-                    Song(id: "s1", title: "Intro", duration: 120),
-                    Song(id: "s2", title: "Main Theme", duration: 240),
-                    Song(id: "s3", title: "Bridge", duration: 180),
-                    Song(id: "s4", title: "Finale", duration: 210)
-                ]
-            )
+        // Загрузка реальных сетлистов из Firebase Firestore
+        let db = Firestore.firestore()
+        db.collection("setlists").getDocuments { snapshot, error in
+            if let error = error {
+                print("Ошибка при загрузке сетлистов: \(error.localizedDescription)")
+                return
+            }
             
-            let setlist2 = Setlist(
-                id: "2",
-                name: "Acoustic Set",
-                songs: [
-                    Song(id: "s5", title: "Ballad", duration: 180),
-                    Song(id: "s6", title: "Unplugged", duration: 200),
-                    Song(id: "s7", title: "Acoustic Version", duration: 230)
-                ]
-            )
-            
-            let setlist3 = Setlist(
-                id: "3",
-                name: "Festival Set",
-                songs: [
-                    Song(id: "s8", title: "Festival Intro", duration: 90),
-                    Song(id: "s9", title: "Hit Song 1", duration: 210),
-                    Song(id: "s10", title: "Hit Song 2", duration: 200),
-                    Song(id: "s11", title: "Festival Outro", duration: 150)
-                ]
-            )
-            
-            availableSetlists = [setlist1, setlist2, setlist3]
+            if let snapshot = snapshot {
+                self.availableSetlists = snapshot.documents.compactMap { document -> Setlist? in
+                    let data = document.data()
+                    guard let name = data["name"] as? String else { return nil }
+                    
+                    // Получаем массив песен
+                    var songs: [Song] = []
+                    if let songsData = data["songs"] as? [[String: Any]] {
+                        songs = songsData.compactMap { songData -> Song? in
+                            guard let title = songData["title"] as? String,
+                                  let duration = songData["duration"] as? Double else {
+                                return nil
+                            }
+                            
+                            let id = songData["id"] as? String ?? UUID().uuidString
+                            let tempoBPM = songData["tempoBPM"] as? Int
+                            
+                            return Song(id: id, title: title, duration: duration, tempoBPM: tempoBPM)
+                        }
+                    }
+                    
+                    return Setlist(id: document.documentID, name: name, songs: songs)
+                }
+            }
         }
     }
 }

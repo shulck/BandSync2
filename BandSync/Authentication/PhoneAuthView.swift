@@ -361,8 +361,8 @@ struct CodeDigitField: View {
 struct ResendCodeButton: View {
     var onResend: () -> Void
     @State private var timeRemaining = 30
-    @State private var timer: Timer? = nil
     @State private var canResend = false
+    @State private var timer: Timer? = nil
     
     var body: some View {
         Button(action: {

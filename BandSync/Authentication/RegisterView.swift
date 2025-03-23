@@ -258,7 +258,6 @@ struct RegisterView: View {
             return basicInfoValid && groupCodeStatus == .valid
         }
     }
-    
     private func checkPasswordStrength(_ password: String) -> PasswordStrength {
         if password.isEmpty { return .empty }
         
@@ -286,9 +285,11 @@ struct RegisterView: View {
         default: return .strong
         }
     }
-
     func checkGroupCode() {
-        guard !groupCode.isEmpty else { return }
+        guard !groupCode.isEmpty else {
+            print("Group code is empty")
+            return
+        }
         
         groupCodeStatus = .checking
         isCheckingGroupCode = true
@@ -305,12 +306,13 @@ struct RegisterView: View {
             
             if let snapshot = snapshot, !snapshot.documents.isEmpty {
                 groupCodeStatus = .valid
+                print("Group code is valid")
             } else {
                 groupCodeStatus = .invalid
+                print("Group code is invalid")
             }
         }
     }
-
     func register() {
         guard isFormValid else {
             errorMessage = "Please check your inputs and try again."

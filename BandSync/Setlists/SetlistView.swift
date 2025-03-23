@@ -1,6 +1,6 @@
 import SwiftUI
-import PDFKit
-
+import FirebaseFirestore
+import FirebaseAuth
 struct SetlistView: View {
     @State private var setlists: [Setlist] = []
     @State private var selectedSetlist: Setlist?
@@ -94,11 +94,9 @@ struct SetlistView: View {
             .sheet(isPresented: $isAddingNewSong) {
                 AddSongView { newSong in
                     if var setlist = selectedSetlist {
-                        // Удалить демо-песни перед добавлением новой
-                        setlist.songs.removeAll { $0.title.contains("Demo") }
                         setlist.songs.append(newSong)
-                        updateSetlist(setlist)
-                        calculateTotalDuration()
+                        // Сохраняем обновленный сетлист в Firebase
+                        updateSetlistInFirebase(setlist)
                     }
                 }
             }
@@ -111,10 +109,10 @@ struct SetlistView: View {
             }
             .sheet(isPresented: $isAddingSetlist) {
                 CreateSetlistView { newSetlist in
-                    setlists.append(newSetlist)
-                    selectedSetlist = newSetlist
+                    saveSetlistToFirebase(newSetlist)
                 }
             }
+        
             .sheet(isPresented: $showingRehearsalMode) {
                 if let setlist = selectedSetlist {
                     NavigationView {
@@ -135,7 +133,7 @@ struct SetlistView: View {
             }
         }
         .onAppear {
-            loadSetlists()
+            fetchSetlistsFromFirebase()
         }
     }
     
@@ -156,7 +154,109 @@ struct SetlistView: View {
             demoDataLoaded = true // Устанавливаем флаг, что демо-данные загружены
         }
     }
-    
+    func fetchSetlistsFromFirebase() {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            print("❌ Невозможно загрузить сетлисты: отсутствует идентификатор пользователя")
+            return
+        }
+        
+        let db = Firestore.firestore()
+        db.collection("setlists")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("❌ Ошибка загрузки сетлистов: \(error.localizedDescription)")
+                    return
+                }
+                
+                self.setlists = snapshot?.documents.compactMap { document in
+                    let data = document.data()
+                    let songs = (data["songs"] as? [[String: Any]] ?? []).map { songData in
+                        Song(
+                            id: songData["id"] as? String ?? UUID().uuidString,
+                            title: songData["title"] as? String ?? "",
+                            duration: songData["duration"] as? TimeInterval ?? 0,
+                            tempoBPM: songData["tempoBPM"] as? Int
+                        )
+                    }
+                    
+                    return Setlist(
+                        id: data["id"] as? String ?? UUID().uuidString,
+                        name: data["name"] as? String ?? "",
+                        songs: songs
+                    )
+                } ?? []
+                
+                // Выбираем первый сетлист, если есть
+                if !self.setlists.isEmpty {
+                    self.selectedSetlist = self.setlists.first
+                    self.calculateTotalDuration()
+                }
+            }
+    }
+
+    func saveSetlistToFirebase(_ setlist: Setlist) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            print("❌ Невозможно сохранить сетлист: отсутствует идентификатор пользователя")
+            return
+        }
+        
+        let db = Firestore.firestore()
+        let setlistData: [String: Any] = [
+            "id": setlist.id,
+            "name": setlist.name,
+            "userId": userId,
+            "songs": setlist.songs.map { song in
+                [
+                    "id": song.id,
+                    "title": song.title,
+                    "duration": song.duration,
+                    "tempoBPM": song.tempoBPM ?? 120
+                ]
+            }
+        ]
+        
+        db.collection("setlists").document(setlist.id).setData(setlistData) { error in
+            if let error = error {
+                print("❌ Ошибка сохранения сетлиста: \(error.localizedDescription)")
+            } else {
+                print("✅ Сетлист \(setlist.name) успешно сохранен")
+            }
+        }
+    }
+    func updateSetlistInFirebase(_ updatedSetlist: Setlist) {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            print("❌ Невозможно обновить сетлист: отсутствует идентификатор пользователя")
+            return
+        }
+        
+        let setlistData: [String: Any] = [
+            "id": updatedSetlist.id,
+            "name": updatedSetlist.name,
+            "userId": userId,
+            "songs": updatedSetlist.songs.map { song in
+                [
+                    "id": song.id,
+                    "title": song.title,
+                    "duration": song.duration,
+                    "tempoBPM": song.tempoBPM ?? 120
+                ]
+            }
+        ]
+        
+        let db = Firestore.firestore()
+        db.collection("setlists").document(updatedSetlist.id).setData(setlistData) { error in
+            if let error = error {
+                print("❌ Ошибка обновления сетлиста: \(error.localizedDescription)")
+            } else {
+                print("✅ Сетлист \(updatedSetlist.name) успешно обновлен")
+                // Перезагружаем список сетлистов после обновления
+                DispatchQueue.main.async {
+                    self.fetchSetlistsFromFirebase()
+                }
+            }
+        }
+    }
     func calculateTotalDuration() {
         if let setlist = selectedSetlist {
             totalDuration = setlist.songs.reduce(0) { $0 + $1.duration }
@@ -200,6 +300,7 @@ struct SetlistView: View {
         
         SetlistPDFExporter.sharePDF(from: setlist, in: rootViewController)
     }
+    
 }
 
 struct Song: Identifiable, Equatable {
