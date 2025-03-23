@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleLocalizations</key>
+	<array/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>We use Face ID to provide a secure and convenient way to log in to your account.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Приложение использует ваше местоположение для отображения концертных площадок и мероприятий на карте.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Приложение использует геолокацию для отображения событий и контактов на карте.</string>
+</dict>
+</plist>
