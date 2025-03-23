@@ -11,6 +11,7 @@ struct SetlistView: View {
     @State private var isAddingSetlist = false
     @State private var selectedSong: Song?
     @State private var isEditingSong = false
+    @State private var demoDataLoaded = false // Добавлено для отслеживания загрузки демо-данных
     
     var body: some View {
         NavigationView {
@@ -93,6 +94,8 @@ struct SetlistView: View {
             .sheet(isPresented: $isAddingNewSong) {
                 AddSongView { newSong in
                     if var setlist = selectedSetlist {
+                        // Удалить демо-песни перед добавлением новой
+                        setlist.songs.removeAll { $0.title.contains("Demo") }
                         setlist.songs.append(newSong)
                         updateSetlist(setlist)
                         calculateTotalDuration()
@@ -137,8 +140,8 @@ struct SetlistView: View {
     }
     
     func loadSetlists() {
-        // Принудительное создание демо-данных, если список пуст
-        if setlists.isEmpty {
+        // Принудительное создание демо-данных, если список пуст и демо-данные не загружены
+        if setlists.isEmpty && !demoDataLoaded {
             // Создаем как минимум один сетлист
             let demoSongs = [
                 Song(title: "First Song", duration: 180, tempoBPM: 120),
@@ -150,27 +153,8 @@ struct SetlistView: View {
             setlists = [demoSetlist]
             selectedSetlist = demoSetlist
             calculateTotalDuration()
+            demoDataLoaded = true // Устанавливаем флаг, что демо-данные загружены
         }
-    }
-    
-    func loadDemoData() {
-        let demoSongs1 = [
-            Song(title: "Intro", duration: 120, tempoBPM: 120),
-            Song(title: "Main Theme", duration: 240, tempoBPM: 132),
-            Song(title: "Finale", duration: 180, tempoBPM: 110)
-        ]
-        
-        let demoSongs2 = [
-            Song(title: "New Song", duration: 210, tempoBPM: 128),
-            Song(title: "Ballad", duration: 300, tempoBPM: 90)
-        ]
-        
-        let setlist1 = Setlist(name: "Main Set", songs: demoSongs1)
-        let setlist2 = Setlist(name: "Alternative Set", songs: demoSongs2)
-        
-        setlists = [setlist1, setlist2]
-        selectedSetlist = setlist1
-        calculateTotalDuration()
     }
     
     func calculateTotalDuration() {
@@ -593,4 +577,3 @@ struct EditSetlistView: View {
         }
     }
 }
-// Остальные структуры (SetlistRow, SetlistDetailView и т.д.) остаются без изменений
