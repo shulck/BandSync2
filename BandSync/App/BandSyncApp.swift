@@ -2,6 +2,7 @@ import SwiftUI
 import Firebase
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseStorage // Добавлен импорт Firebase Storage
 import UserNotifications
 
 @main
@@ -54,6 +55,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         FirebaseApp.configure()
         print("🔥 Firebase successfully initialized!")
         Firestore.firestore() // Инициализация Firestore
+        Storage.storage() // Инициализация Firebase Storage
         
         // Настройка центра уведомлений
         UNUserNotificationCenter.current().delegate = self

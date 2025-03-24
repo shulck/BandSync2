@@ -10,6 +10,9 @@
 		C34707F42D89FEE10022B17D /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = C34707F32D89FEE10022B17D /* FirebaseFirestore */; };
 		C375284D2D89F6B400A7F2D2 /* FSCalendar in Frameworks */ = {isa = PBXBuildFile; productRef = C375284C2D89F6B400A7F2D2 /* FSCalendar */; };
 		C37528522D89F95000A7F2D2 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C37528512D89F95000A7F2D2 /* FirebaseAuth */; };
+		FACD945F2D90F38A0085E16F /* Vision.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FACD945E2D90F38A0085E16F /* Vision.framework */; };
+		FACD94612D90F39A0085E16F /* VisionKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FACD94602D90F39A0085E16F /* VisionKit.framework */; };
+		FACD94632D90F4AC0085E16F /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = FACD94622D90F4AC0085E16F /* FirebaseStorage */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -33,6 +36,8 @@
 		C33C9FA32D89F067000ACF7B /* BandSync.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BandSync.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C33C9FBA2D89F068000ACF7B /* BandSyncTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BandSyncTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C33C9FC42D89F068000ACF7B /* BandSyncUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BandSyncUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		FACD945E2D90F38A0085E16F /* Vision.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Vision.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.2.sdk/System/Library/Frameworks/Vision.framework; sourceTree = DEVELOPER_DIR; };
+		FACD94602D90F39A0085E16F /* VisionKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = VisionKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.2.sdk/System/Library/Frameworks/VisionKit.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -61,9 +66,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FACD94612D90F39A0085E16F /* VisionKit.framework in Frameworks */,
+				FACD945F2D90F38A0085E16F /* Vision.framework in Frameworks */,
 				C375284D2D89F6B400A7F2D2 /* FSCalendar in Frameworks */,
 				C37528522D89F95000A7F2D2 /* FirebaseAuth in Frameworks */,
 				C34707F42D89FEE10022B17D /* FirebaseFirestore in Frameworks */,
+				FACD94632D90F4AC0085E16F /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -106,6 +114,8 @@
 		C375284B2D89F6B400A7F2D2 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				FACD94602D90F39A0085E16F /* VisionKit.framework */,
+				FACD945E2D90F38A0085E16F /* Vision.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -133,6 +143,7 @@
 				C375284C2D89F6B400A7F2D2 /* FSCalendar */,
 				C37528512D89F95000A7F2D2 /* FirebaseAuth */,
 				C34707F32D89FEE10022B17D /* FirebaseFirestore */,
+				FACD94622D90F4AC0085E16F /* FirebaseStorage */,
 			);
 			productName = BandSync;
 			productReference = C33C9FA32D89F067000ACF7B /* BandSync.app */;
@@ -300,7 +311,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"BandSync/Preview Content\"";
-				DEVELOPMENT_TEAM = T5DQ99J442;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -343,7 +354,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"BandSync/Preview Content\"";
-				DEVELOPMENT_TEAM = T5DQ99J442;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -657,6 +668,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C37528502D89F95000A7F2D2 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAuth;
+		};
+		FACD94622D90F4AC0085E16F /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C37528502D89F95000A7F2D2 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
